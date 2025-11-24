@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>会津若松 最短経路マップ</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        body { 
+            margin: 0; padding: 20px; font-family: Arial, sans-serif; 
+        }
+        #controls { 
+            margin-bottom: 20px; 
+        }
+        #map { 
+            height: 600px; border: 2px solid #333; 
+        }
+        select, button { 
+            padding: 10px; margin: 5px; font-size: 16px; 
+        }
+        button { 
+            background: #4CAF50; color: white; border: none; cursor: pointer; 
+        }
+        button:hover { 
+            background: #45a049; 
+        }
+        #result {
+             margin-top: 10px; font-size: 18px; font-weight: bold; color: red; 
+        }
+    </style>
+</head>
+<body>
+    <h1>会津若松 最短経路マップ</h1>
+        <div id="controls">
+        <label>出発地: 
+            <select id="start">
+                <option value="">選択してください</option>
+                <option value="0">会津若松駅</option>
+                <option value="1">鶴ヶ城</option>
+                <option value="2">東山温泉</option>
+                <option value="3">飯盛山</option>
+                <option value="4">七日町通り</option>
+                <option value="5">さざえ堂</option>
+                <option value="6">会津大学</option>
+                <option value="7">武家屋敷</option>
+            </select>
+        </label>
+        
+        <label>目的地: 
+            <select id="goal"> 
+                <option value="">選択してください</option>
+                <option value="0">会津若松駅</option>
+                <option value="1">鶴ヶ城</option>
+                <option value="2">東山温泉</option>
+                <option value="3">飯盛山</option>
+                <option value="4">七日町通り</option>
+                <option value="5">さざえ堂</option>
+                <option value="6">会津大学</option>
+                <option value="7">武家屋敷</option>
+            </select>
+        </label>
+        
+        <button onclick="showRoute()">経路を表示</button>
+        <div id="result"></div>
+    </div>
+    
+    
+    <div id="map"></div>
+    
+    <script>
+        let roadData;
+        let map = L.map('map').setView([37.50, 139.93], 13);
+        let routeLine = null;
+        
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors' //著作権で書いとく必要がある
+        }).addTo(map);
+        //Leaflet(jsの地図表示ライブラリ)で地図画像を読み込む関数
+        //Leafletは6行目のlinkで持った来ている
+        //x:x座標　y:y座標 z:ズームレベル
+        
+
+        // データ読み込み
+        fetch('aizu_data.json') //サーバやファイルからデータを得るjs機能
+            .then(response => response.json()) //json変換
+            .then(data => {
+                roadData = data;
+                
+                 data.locations.forEach((loc, i) => {
+                    L.marker([loc.lat, loc.lon]).addTo(map)
+                        .bindPopup(`<b>${loc.name}</b>`);
+                    //L.markerはオープンソースの地図表示ライブラリ
+                    
+                });
+            });
+        
+function showRoute() {
+    const startValue = document.getElementById('start').value;
+    const goalValue = document.getElementById('goal').value;
+    
+    if (!startValue || !goalValue) {
+        alert('出発地と目的地を選択してください');
+        return;
+    }
+    
+    const start = parseInt(startValue);
+    const goal = parseInt(goalValue);
+
+    if (start === goal) {
+        alert('違う地点を選択してください');
+        return;
+    }
+
+    // 前の経路を消す
+    if (routeLine) map.removeLayer(routeLine);
+    
+    // 経路のキーを作る（小さい番号を先に）
+    const routeKey = start < goal ? `${start}-${goal}` : `${goal}-${start}`;
+    let routeCoords = roadData.routes[routeKey];
+    
+    if (!routeCoords) {
+        alert('経路が見つかりません');
+        return;
+    }
+    
+    // 順番が逆のときは反転
+    let coords = routeCoords;
+    if (start > goal) {
+        coords = [...routeCoords].reverse();
+    }
+    
+    // 赤い線で描画
+    routeLine = L.polyline(coords, {
+        color: 'red',
+        weight: 5,
+        opacity: 0.7
+    }).addTo(map);
+    
+    //経路にズームする、map.fitBoundsはLeaflet.jsから
+    map.fitBounds(routeLine.getBounds());
+    
+    // 距離get
+    const distance = roadData.distances[start][goal];
+
+    if (distance && distance !== null) {
+        document.getElementById('result').innerHTML = 
+            `最短距離: ${distance.toFixed(2)} km`;
+            //小数点2桁に収める
+    } else {
+        document.getElementById('result').innerHTML = '距離情報なし';
+    }
+}
+        
+    </script>
+</body>
+</html>
